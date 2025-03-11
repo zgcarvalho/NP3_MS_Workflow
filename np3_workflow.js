@@ -1254,7 +1254,7 @@ program
             // install R packages
             console.log('* Checking R packages requirements *\n');
 
-            resExec = shell.exec('Rscript '+__dirname+'/src/R_requirements.R', {async:false});
+            resExec = shell.exec('Rscript '+__dirname+'/src/R_requirements.R', {async:false, silent: false});
             if (resExec.code) {
                 console.log(resExec.stdout);
                 console.log(resExec.stderr);
