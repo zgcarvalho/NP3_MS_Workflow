@@ -674,6 +674,9 @@ function callAnnotateCleanCounts(parms, output_path, mz_tol, fragment_tol, rt_to
 function callPairwiseComparision(out_name, out_path, mgf_path, bin_size, scaling_method, trim_mz, max_shift, cores_parallel,
                                  verbose)
 {
+    // TODO add parm to select similarity function - NP3 shifted cosine or spec2vec - if spec2vec convert mgf dir to _all.mgf file
+    // TODO in the setup module download the large models files
+    // and execute the python script
     const step_name = '*** Step 5 - Computing the pairwise similarity comparisons of the resulting consensus spectra *** \n';
     console.log(step_name);
     const start_comp = process.hrtime.bigint();
