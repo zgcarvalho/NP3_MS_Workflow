@@ -132,7 +132,8 @@ lib_idres_scans <- dplyr::arrange(lib_idres_scans, msclusterID, desc(MQScore))
 gnps_columns_keep <- c('msclusterID', 'SpectrumID','Adduct','Smiles',
                        'CAS_Number','Compound_Name','LibMZ','MZErrorPPM',
                        'MQScore','LibraryQualityString','SharedPeaks','Organism',
-                       'superclass','class','subclass', "Ion_Source_Instrument")
+                       'npclassifier_superclass', 'npclassifier_class', 'npclassifier_pathway', # old gnps columns for npclassifier result 'superclass','class','subclass',
+                       'Ion_Source_Instrument')
 
 #verify if there is a missing column and exclude it from the filter
 gnps_columns_keep <- gnps_columns_keep[gnps_columns_keep %in% names(lib_idres_scans)]
