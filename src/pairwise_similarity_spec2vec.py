@@ -104,11 +104,11 @@ def compute_pairwise_similarity_spec2vec(data_name, path_mgf, output_path, bin_s
     header_index = "parameters sim pairwise - spec2vec - scale_factor:0.5;bin_size:"+str(bin_size)+";trim_mz:"+str(trim_mz)
     # Store similarity matrix
     similarity_matrix = pd.DataFrame(similarity_matrix, index=scans_number, columns=scans_number)
-    similarity_matrix.to_csv(os.path.join(output_path, "similarity_table_"+data_name+"_spec2vec.csv"),
+    similarity_matrix.to_csv(os.path.join(output_path, "similarity_table_"+data_name+".csv"),
               sep=',', na_rep="", index_label=header_index)
     # store matches matrix
     matched_peaks_matrix = pd.DataFrame(matched_peaks_matrix, index=scans_number, columns=scans_number)
-    matched_peaks_matrix.to_csv(os.path.join(output_path, "similarity_table_matches_"+data_name+"_spec2vec.csv"),
+    matched_peaks_matrix.to_csv(os.path.join(output_path, "similarity_table_matches_"+data_name+".csv"),
               sep=',', na_rep="", index_label=header_index)
 
 
