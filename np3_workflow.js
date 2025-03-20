@@ -134,15 +134,21 @@ function convertIonMode(mode) {
 }
 
 function convertMethodCorr(method) {
-    //method = parseDecimal(method);
-    //console.log(method);
-
     if (!["pearson", "kendall", "spearman"].includes(method)) {
         console.error('\nERROR. Wrong method parameter value. The correlation method must be one of {"pearson", "kendall", "spearman"}. Execution aborted.');
         process.exit(1);
     }
 
     return(method);
+}
+
+function convertSimilarityFunc(simFunc) {
+    if (!["np3_shifted_cosine", "spec2vec"].includes(simFunc)) {
+        console.error('\nERROR. Wrong similarity function parameter value. The similarity function must be one of {"np3_shifted_cosine", "spec2vec"}. Execution aborted.');
+        process.exit(1);
+    }
+
+    return(simFunc);
 }
 
 function callPlotBasePeakIntDistribution(path_clustering_count, bflag_cutoff_factor, logOutputPath, verbose)
@@ -596,7 +602,7 @@ function callCleanClusteringCounts(parms, output_path, mz_tol, rt_tol, bin_size,
             output_path+'/molecular_networking/similarity_tables/',
             output_path+'/mgf/'+output_name+'_clean.mgf',
              bin_size, parms.scale_factor, parms.trim_mz, parms.max_shift,
-            parms.parallel_cores,parms.verbose);
+            parms.parallel_cores, parms.similarity_function, parms.verbose);
         shell.ShellString(out_pairComp).toEnd(clean_output_path+"logCleanOutput");
 
         callGroupsfunc(parms.metadata,
@@ -671,14 +677,29 @@ function callAnnotateCleanCounts(parms, output_path, mz_tol, fragment_tol, rt_to
     return(resExec.code);
 }
 
-function callPairwiseComparision(out_name, out_path, mgf_path, bin_size, scaling_method, trim_mz, max_shift, cores_parallel,
-                                 verbose)
+function callPairwiseComparision(out_name, out_path, mgf_path, bin_size, scaling_method, trim_mz, max_shift,
+                                 cores_parallel, similarity_function, verbose)
 {
     const step_name = '*** Step 5 - Computing the pairwise similarity comparisons of the resulting consensus spectra *** \n';
     console.log(step_name);
+
     const start_comp = process.hrtime.bigint();
-    var resExec = shell.exec('Rscript '+__dirname+'/src/pairwise_similarity.R '+out_name+' '+mgf_path+' '+out_path+' '+
-        bin_size+' '+scaling_method+' '+trim_mz+' '+max_shift+' '+cores_parallel, {async:false, silent:(verbose <= 0)});
+    // select the similarity function to be used, one of NP3 shifted cosine or spec2vec - if spec2vec convert mgf dir to _all.mgf file
+    if (similarity_function == "spec2vec")
+    {
+        console.log("* Using the spec2vec function to compute the spectra comparisons");
+        console.log("* The scaling_method is automatically set to the power of 0.5, similar to the used model");
+        // check if mgf_path is a directory, if so convert it to the single file named <job_name>_all.mgf
+        if (shell.test('-d', mgf_path)) {
+            mgf_path = mgf_path +'/'+out_name+'_all.mgf'
+        }
+        var resExec = shell.exec('python '+__dirname+'/src/pairwise_similarity_spec2vec.py '+out_name+' '+mgf_path+' '+out_path+' '+
+            bin_size+' '+trim_mz, {async:false, silent:(verbose <= 0)});
+    } else {
+        console.log("* Using the NP3 shifted cosine function to compute the spectra comparisons");
+        var resExec = shell.exec('Rscript '+__dirname+'/src/pairwise_similarity.R '+out_name+' '+mgf_path+' '+out_path+' '+
+            bin_size+' '+scaling_method+' '+trim_mz+' '+max_shift+' '+cores_parallel, {async:false, silent:(verbose <= 0)});
+    }
 
     var output_msg = '';
     if (resExec.code) {
@@ -1213,7 +1234,7 @@ function defaultModelDir() {
 }
 
 program
-    .version('1.1.5',  '--version')
+    .version('1.1.6',  '--version')
     .usage(' command [options]\n\n' +
         'The NP3 MS workflow is a software system with a collection of scripts to enhance untargeted metabolomics ' +
         'research focused on drug discovery with optimizations towards natural products. \n\n' +
@@ -1249,7 +1270,41 @@ program
         }
         shell.cd(call_cwd);
 
-
+        // Download the large spec2vec model files - vectors and trainables
+        var file_spec2vec = __dirname+'/src/spec2vec_models/spec2vec_UniqueInchikeys_ratio05_filtered_iter_50.model.wv.vectors.npy'
+        var url_file_spec2vec = "https://zenodo.org/records/3978054/files/spec2vec_UniqueInchikeys_ratio05_filtered_iter_50.model.wv.vectors.npy?download=1"
+        if (!(shell.test('-e', file_spec2vec) && shell.test('-f', file_spec2vec)))
+        {
+            console.log('* Downloading the spec2vec model vectors table *\n');
+            resExec = shell.exec('python '+__dirname+'/src/download_spec2vec_model.py '+
+                url_file_spec2vec+' '+file_spec2vec, {async:false, silent: false});
+            if (resExec.code) {
+                console.log(resExec.stdout);
+                console.log(resExec.stderr);
+                console.log('\nERROR. Could not download the spec2vec model vectors table.');
+                countError = countError + 1;
+            } else {
+                console.log("DONE!\n");
+            }
+        }
+        file_spec2vec = __dirname+'/src/spec2vec_models/spec2vec_UniqueInchikeys_ratio05_filtered_iter_50.model.trainables.syn1neg.npy'
+        url_file_spec2vec = "https://zenodo.org/records/3978054/files/spec2vec_UniqueInchikeys_ratio05_filtered_iter_50.model.trainables.syn1neg.npy?download=1"
+        if (!(shell.test('-e', file_spec2vec) && shell.test('-f', file_spec2vec)))
+        {
+            console.log('* Downloading the spec2vec model trainables table *\n');
+            resExec = shell.exec('python '+__dirname+'/src/download_spec2vec_model.py '+
+                url_file_spec2vec+' '+file_spec2vec, {async:false, silent: false});
+            if (resExec.code) {
+                console.log(resExec.stdout);
+                console.log(resExec.stderr);
+                console.log('\nERROR. Could not download the spec2vec model trainables table.');
+                countError = countError + 1;
+            } else {
+                console.log("DONE!\n");
+            }
+        }
+        
+        // check if R is installed
         if (!shell.which('R')) {
             console.log('ERROR. R not found, please ensure R is available and try again.');
             process.exit(1);
@@ -1354,8 +1409,7 @@ program
             console.log('\nERROR. Could not compile the NP3_MSClustering algorithm. Ensure Make is working and try again.');
             shell.cd(call_cwd);
             process.exit(1);
-        } else
-        {
+        } else {
             console.log("DONE!\n\n");
         }
 
@@ -1368,7 +1422,6 @@ program
             console.log('NP3 workflow installation ended with ' + countError +
                 " error(s). Check the error messages, fix the conflicts and retry the setup. " + printTimeElapsed_bigint(start_setup, process.hrtime.bigint()))
         }
-
     })
     .on('--help', function() {
         console.log('');
@@ -1405,6 +1458,12 @@ program
     .option('-a, --ion_mode [x]', 'the precursor ion mode. One of the following numeric values\n\t\t\t\t\t' +
         'corresponding to an ion adduct type: \'1\' = [M+H]+ or\n\t\t\t\t\t' +
         '\'2\' = [M-H]-', convertIonMode,1)
+    .option('-i, --similarity_function [x]', 'the similarity function to be used in the spectra comparison \n\t\t\t\t\t' +
+        'to create the pairwise similarity table after clustering and clean steps. \n\t\t\t\t\t' +
+        'If "spec2vec" is selected, the model trained on UniqueInchikey subset (12,797 spectra) \n\t\t\t\t\t' +
+        'is used by spec2vec in the spectra comparison and the matchms library is used to compute \n\t\t\t\t\t' +
+        'the number of matched peaks between the compared spectra; otherwise, the NP3 shifted cosine \n\t\t\t\t\t' +
+        'function is used. One of "np3_shifted_cosine" or "spec2vec".', convertSimilarityFunc, "np3_shifted_cosine")
     .option('-s, --similarity [x]', 'the minimum similarity to be consider in the hierarchical\n\t\t\t\t\t' +
         'clustering of Step 3, starts in 0.70 and decrease to X in 15 rounds.\n\t\t\t\t\t' +
         'Also used in the clean Step 5', parseFloat, 0.55)
@@ -1633,7 +1692,7 @@ program
         var out_clustered_spec_comp = callPairwiseComparision(options.output_name, output_path + "/molecular_networking/similarity_tables",
             output_path+"/mgf/", options.fragment_tolerance,
             options.scale_factor, options.trim_mz, options.max_shift,options.parallel_cores,
-            options.verbose);
+            options.similarity_function, options.verbose);
 
         // remove mass dissipation in the clustering from area and spectra count
         resExec = callCleanClusteringCounts(options, output_path, options.mz_tolerance,
@@ -2260,6 +2319,12 @@ program
         'in the clean Step 5', splitListFloat, [1,2])
     .option('-a, --ion_mode [x]', 'the precursor ion mode. One of the following numeric values corresponding ' +
         'to a ion adduct type: \'1\' = [M+H]+ or \'2\' = [M-H]-', convertIonMode,1)
+    .option('-i, --similarity_function [x]', 'the similarity function to be used in the spectra comparison \n\t\t\t\t\t' +
+        'to create the pairwise similarity table after clustering and clean steps. \n\t\t\t\t\t' +
+        'If "spec2vec" is selected, the model trained on UniqueInchikey subset (12,797 spectra) \n\t\t\t\t\t' +
+        'is used by spec2vec in the spectra comparison and the matchms library is used to compute \n\t\t\t\t\t' +
+        'the number of matched peaks between the compared spectra; otherwise, the NP3 shifted cosine \n\t\t\t\t\t' +
+        'function is used. One of "np3_shifted_cosine" or "spec2vec".', convertSimilarityFunc, "np3_shifted_cosine")
     .option('-s, --similarity [x]', 'the similarity to be consider when joining clusters and merging ' +
         'their counts in not blank samples', parseFloat, 0.55)
     .option('-g, --similarity_blank [x]', 'the similarity to be consider when joining clusters and ' +
@@ -2387,7 +2452,7 @@ program
             out_clustered_spec_comp = callPairwiseComparision(basename(options.output_path), options.output_path + "/molecular_networking/similarity_tables",
                 options.output_path + "/mgf/", options.fragment_tolerance,
                 options.scale_factor, options.trim_mz, options.max_shift, options.parallel_cores,
-                options.verbose);
+                options.similarity_function, options.verbose);
         }
 
         const start_clean = process.hrtime.bigint();
@@ -3166,9 +3231,9 @@ program
                 console.log('DONE!\n');
             }
             //console.log("\n\n");
-            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
             console.log("@@@@@@ Test 1.1 - L754_bacs_all - gnps_result - Molecular Networking @@@@@");
-            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
+            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
             resExec = shell.exec(np3_js_call+' gnps_result ' +
                 '-i '+__dirname+'/test/L754_bacs/ProteoSAFe-METABOLOMICS-SNETS-MOLECULARNETWORKING-V2-2dfe22ff-download_clustered_spectra/clusterinfo/0e83d32ce4414494ad9cc12ad3db4824.clusterinfo ' +
                 '-s '+__dirname+'/test/L754_bacs/ProteoSAFe-METABOLOMICS-SNETS-MOLECULARNETWORKING-V2-2dfe22ff-download_clustered_spectra/result_specnets_DB/31ba0709274e450295c6da492030f356.tsv ' +
@@ -3187,9 +3252,9 @@ program
                 // test_res[0] = test_res[0] + '\n*** TESTING - gnps_result - Molecular Networking ***\n\n' + resExec.stdout;
                 console.log('DONE!\n');
             }
-            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
             console.log("@@@@@@ Test 1.2 - L754_bacs_all - gnps_result - Library Search @@@@@");
-            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
+            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
             resExec = shell.exec(np3_js_call+' gnps_result ' +
                 '-s '+__dirname+'/test/L754_bacs/ProteoSAFe-MOLECULAR-LIBRARYSEARCH-V2-da67f38d-download_all_identifications/MOLECULAR-LIBRARYSEARCH-V2-da67f38d-download_all_identifications-main.tsv ' +
                 '-c '+__dirname+'/test/L754_bacs/L754_bacs_all/outs/L754_bacs_all/count_tables/clean/L754_bacs_all_spectra_clean_ann.csv',
@@ -3242,15 +3307,15 @@ program
         // # split the run cmd in the sub cmds calls and using a smaller chunk size
         if (options.skip <= 3) {
             shell.rm('-rf', __dirname+'/test/L754_bacs/L754_bacs_one_collection');
-            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-            console.log("@@@@@ Test 3 - L754_bacs_one_collection - run @@@@@");
-            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
+            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+            console.log("@@@@@ Test 3 - L754_bacs_one_collection - spec2vec - run @@@@@");
+            console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
             resExec = shell.exec(np3_js_call+' run -n L754_bacs_one_collection ' +
                 '-m '+__dirname+'/test/L754_bacs/marine_bacteria_library_L754_metadata_one_collection.csv ' +
                 '-d '+__dirname+'/test/L754_bacs/mzxml ' +
                 '-o '+__dirname+'/test/L754_bacs/ -y processed_data_one_collection -j '+options.tremolo+' -b 200 ' +
                 '-v 11 -t 5,10 -q '+options.pre_process+
-                ' --bflag_cutoff 1.5 --noise_cutoff 1.5',
+                ' --bflag_cutoff 1.5 --noise_cutoff 1.5 -i spec2vec',
                 {async:false, silent:true});
             if (resExec.code || resExec.stdout.includes("ERROR") || resExec.stderr.includes("ERROR")) {
                 // in case of error show all the emmited msgs

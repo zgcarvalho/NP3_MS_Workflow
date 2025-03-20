@@ -4,10 +4,11 @@
 
 - - - - 
 
-# Current Version 1.1.5
+# Current Version 1.1.6
 
 - NEW features:
-	- Creating the [M+H]⁺ networks directly in the pipeline (automated in step 10). Now the final output also contains the protonated IVAMN and SSMN in the molecular_networking output folder.
+  - Included spec2vec function as a possibility for the spectra similarity comparison in step 5. The user may select to use spec2vec or NP3 shifted cosine function using the similarity_function parameter.
+	- (1.1.5) Creating the [M+H]⁺ networks directly in the pipeline (automated in step 10). Now the final output also contains the protonated IVAMN and SSMN in the molecular_networking output folder.
  
 - - - -
 
