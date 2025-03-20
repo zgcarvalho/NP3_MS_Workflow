@@ -1460,7 +1460,10 @@ program
         '\'2\' = [M-H]-', convertIonMode,1)
     .option('-i, --similarity_function [x]', 'the similarity function to be used in the spectra comparison \n\t\t\t\t\t' +
         'to create the pairwise similarity table after clustering and clean steps. \n\t\t\t\t\t' +
-        'One of "np3_shifted_cosine" or "spec2vec".', convertSimilarityFunc, "np3_shifted_cosine")
+        'If "spec2vec" is selected, the model trained on UniqueInchikey subset (12,797 spectra) \n\t\t\t\t\t' +
+        'is used by spec2vec in the spectra comparison and the matchms library is used to compute \n\t\t\t\t\t' +
+        'the number of matched peaks between the compared spectra; otherwise, the NP3 shifted cosine \n\t\t\t\t\t' +
+        'function is used. One of "np3_shifted_cosine" or "spec2vec".', convertSimilarityFunc, "np3_shifted_cosine")
     .option('-s, --similarity [x]', 'the minimum similarity to be consider in the hierarchical\n\t\t\t\t\t' +
         'clustering of Step 3, starts in 0.70 and decrease to X in 15 rounds.\n\t\t\t\t\t' +
         'Also used in the clean Step 5', parseFloat, 0.55)
@@ -2318,7 +2321,10 @@ program
         'to a ion adduct type: \'1\' = [M+H]+ or \'2\' = [M-H]-', convertIonMode,1)
     .option('-i, --similarity_function [x]', 'the similarity function to be used in the spectra comparison \n\t\t\t\t\t' +
         'to create the pairwise similarity table after clustering and clean steps. \n\t\t\t\t\t' +
-        'One of "np3_shifted_cosine" or "spec2vec".', convertSimilarityFunc, "np3_shifted_cosine")
+        'If "spec2vec" is selected, the model trained on UniqueInchikey subset (12,797 spectra) \n\t\t\t\t\t' +
+        'is used by spec2vec in the spectra comparison and the matchms library is used to compute \n\t\t\t\t\t' +
+        'the number of matched peaks between the compared spectra; otherwise, the NP3 shifted cosine \n\t\t\t\t\t' +
+        'function is used. One of "np3_shifted_cosine" or "spec2vec".', convertSimilarityFunc, "np3_shifted_cosine")
     .option('-s, --similarity [x]', 'the similarity to be consider when joining clusters and merging ' +
         'their counts in not blank samples', parseFloat, 0.55)
     .option('-g, --similarity_blank [x]', 'the similarity to be consider when joining clusters and ' +
