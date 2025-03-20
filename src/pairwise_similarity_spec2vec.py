@@ -1,11 +1,8 @@
-# code from https://github.com/iomega/spec2vec_gnps_data_analysis/blob/master/notebooks/
-# adapted notebooks 3 and 6
-# Compute spec2vec similarities on mass spectra dataset
 import os
-import sys
 import gensim
 import time
 import numpy as np
+import pandas as pd
 from matchms.importing import load_from_mgf
 from matchms.filtering import normalize_intensities
 from matchms.filtering import remove_peaks_around_precursor_mz
@@ -15,6 +12,9 @@ from matchms.similarity.spectrum_similarity_functions import find_matches
 from spec2vec import Spec2Vec
 from spec2vec import SpectrumDocument
 
+# some code from https://github.com/iomega/spec2vec_gnps_data_analysis/blob/master/notebooks/
+# Adapted notebooks 3 and 6
+# Compute spec2vec similarities on mass spectra dataset
 
 # Pre-processing of spectrum before pairwise comparison - similar to how it is done in MSCluster and NP3
 # normalize spectrum, remove peaks around precursor if trim_mz is T, remove very low intensity peaks
@@ -30,7 +30,8 @@ def pre_process_spectrum(s, trim_mz=False):
     # return spectrum
     return s
 
-def compute_matches_symmetric(spectra_list, bin_size):
+# use matchms to compute the number o matched peaks symmetrically in a list of spectra
+def compute_peak_matches_symmetric(spectra_list, bin_size):
     matches_matrix = []
     for i in range(len(spectra_list)):
         # set nan values to the lower triangular matrix
@@ -45,22 +46,13 @@ def compute_matches_symmetric(spectra_list, bin_size):
                                                   tolerance=bin_size)))
         matches_matrix.append(matches_i)
     # return the matrix with the number of matched peaks as a np ndarray
-    return numpy.array(matches_matrix)
+    return np.array(matches_matrix)
 
 
-# stop("Seven arguments must be supplied to create the pairwise similarity table:\n",
-#      " 1 - Job name;\n",
-#      " 2 - Path to the MGF file with the spectra to be compared pairwise or directory where the mgfs from the clustering job exists;\n",
-#      " 3 - Path to the output folder to save the resulting similarity table;\n",
-#      " 4 - The bin size to consider two fragmented peaks m/z's the same;\n",
-#      " 5 - The spectra fragmented peaks scaling method: 0 - ln, 1 - no scale and x > 0 power scale;\n",
-#      " 6 - A logical indicating if the spectra should be trimmed by the precursor mass;\n",
-#      " 7 - The maximum difference allowed between precursor m/zs to search for shifted m/z fragments in the cosine computation (max_shift);\n",
-#      " 8 - (optional) The number of cores to use for parallel processing. At least 2 are needed for parallellization. If 1 disable parallel processing (default).\n",
-#      call . =FALSE)
-
-# using model spec2vec_UniqueInchikeys_ratio05_filtered_iter_50
-# scale_factor is fixed to be power of 0.5
+# Compute the pairwise similarity table using spec2vec for similarity comparison and
+# compute number of matched peaks with matchms
+# uses model spec2vec_UniqueInchikeys_ratio05_filtered_iter_50 in the spectra comparison
+# scale_factor is fixed to be power of 0.5 - the same used in the model
 def compute_pairwise_similarity_spec2vec(data_name, path_mgf, output_path, bin_size, trim_mz):
     # get script directory to set spec2vec model path
     # models from https://zenodo.org/records/3978054
@@ -102,10 +94,10 @@ def compute_pairwise_similarity_spec2vec(data_name, path_mgf, output_path, bin_s
     # also compute matched peaks
     # the number of peaks is directly influenced by the filtering method, this result will be different from the R code
     tstart = time.time()
-    matches_matrix = compute_matches_symmetric(spectra_preprocessed, bin_size)
+    matched_peaks_matrix = compute_peak_matches_symmetric(spectra_preprocessed, bin_size)
     tend = time.time()
-    print(f"Calculated {matches_matrix.shape[0]}x{matches_matrix.shape[1]} scores in {tend - tstart} s.")
-    print(f"Calculated {matches_matrix.shape[0]}x{matches_matrix.shape[1]} scores in {(tend - tstart) / 60} min.")
+    print(f"Calculated {matched_peaks_matrix.shape[0]}x{matched_peaks_matrix.shape[1]} scores in {tend - tstart} s.")
+    print(f"Calculated {matched_peaks_matrix.shape[0]}x{matched_peaks_matrix.shape[1]} scores in {(tend - tstart) / 60} min.")
 
     # save similarity table in the right format
     scans_number = [s.get("scans") for s in spectra_preprocessed]
@@ -115,8 +107,29 @@ def compute_pairwise_similarity_spec2vec(data_name, path_mgf, output_path, bin_s
     similarity_matrix.to_csv(os.path.join(output_path, "similarity_table_"+data_name+"_spec2vec.csv"),
               sep=',', na_rep="", index_label=header_index)
     # store matches matrix
-    matches_matrix = pd.DataFrame(matches_matrix, index=scans_number, columns=scans_number)
-    matches_matrix.to_csv(os.path.join(output_path, "similarity_table_matches_"+data_name+"_spec2vec.csv"),
+    matched_peaks_matrix = pd.DataFrame(matched_peaks_matrix, index=scans_number, columns=scans_number)
+    matched_peaks_matrix.to_csv(os.path.join(output_path, "similarity_table_matches_"+data_name+"_spec2vec.csv"),
               sep=',', na_rep="", index_label=header_index)
 
-    # TODO create main process to be called by the workflow if spec2vec is to be used
+
+if __name__ == "__main__":
+    import sys, os
+    if len(sys.argv) >= 6:
+        # print(sys.argv)
+        job_name = sys.argv[1]
+        path_mgf = sys.argv[2]
+        output_path = sys.argv[3]
+        bin_size = float(sys.argv[4])
+        trim_mz = bool(sys.argv[5])
+    else:
+        print("Error: Five arguments must be supplied to created the pairwise similarity table using spec2vec:\n",
+            " 1 - job_name: The name of the job being executed;\n",
+            " 2 - path_mgf: Path to the MGF file with the spectra to be compared pairwise;\n",
+            " 3 - output_path: Path to the output folder to store the resulting similarity table;\n"
+            " 4 - bin_size: The bin size to consider two fragmented peaks m/z's the same, used in the peaks matches procedure;\n",
+            " 5 - trim_mz: A boolean indicating if the spectra should be trimmed by the precursor mass, "
+            "which removes all peaks around the precursor mz +-20 Da.\n")
+        sys.exit(1)
+    # call compute spec2vec
+    compute_pairwise_similarity_spec2vec(data_name=job_name, path_mgf=path_mgf, output_path=output_path,
+                                         bin_size=bin_size, trim_mz=trim_mz)
