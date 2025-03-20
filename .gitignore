@@ -33,3 +33,7 @@ src/spectra_viewer/src/__pycache__/
 src/spectra_viewer/src/pages/__pycache__/*
 src/spectra_viewer/src/pages/__pycache__/
 src/spectra_viewer/src/untitled0.py
+
+# spec2vec model tables #
+#########################
+src/spec2vec_models/*.npy
