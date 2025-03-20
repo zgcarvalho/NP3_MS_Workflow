@@ -83,21 +83,27 @@ def compute_pairwise_similarity_spec2vec(data_name, path_mgf, output_path, bin_s
     spec2vec_similarity = Spec2Vec(model, intensity_weighting_power=0.5, allowed_missing_percentage=50)
     tstart = time.time()
     similarity_matrix = np.round(spec2vec_similarity.matrix(spectra_documents, spectra_documents, is_symmetric=True),3)
-    tend = time.time()
     # remove lower triangular matrix values and reset diagonal with 1.0
     similarity_matrix[np.tril_indices_from(similarity_matrix)] = np.nan
     np.fill_diagonal(similarity_matrix, 1.0)
+    # set negative values to 0 - expected similarity values must be >= 0
+    similarity_matrix[similarity_matrix < 0.0] = 0.0
+    tend = time.time()
 
-    print(f"Calculated {similarity_matrix.shape[0]}x{similarity_matrix.shape[1]} scores in {tend - tstart} s.")
-    print(f"Calculated {similarity_matrix.shape[0]}x{similarity_matrix.shape[1]} scores in {(tend - tstart) / 60} min.")
+    if tend - tstart < 120:
+        print(f"Calculated {similarity_matrix.shape[0]}x{similarity_matrix.shape[1]} scores in {tend - tstart} s.")
+    else:
+        print(f"Calculated {similarity_matrix.shape[0]}x{similarity_matrix.shape[1]} scores in {(tend - tstart) / 60} min.")
 
     # also compute matched peaks
     # the number of peaks is directly influenced by the filtering method, this result will be different from the R code
     tstart = time.time()
     matched_peaks_matrix = compute_peak_matches_symmetric(spectra_preprocessed, bin_size)
     tend = time.time()
-    print(f"Calculated {matched_peaks_matrix.shape[0]}x{matched_peaks_matrix.shape[1]} scores in {tend - tstart} s.")
-    print(f"Calculated {matched_peaks_matrix.shape[0]}x{matched_peaks_matrix.shape[1]} scores in {(tend - tstart) / 60} min.")
+    if tend - tstart < 120:
+        print(f"Calculated {matched_peaks_matrix.shape[0]}x{matched_peaks_matrix.shape[1]} matches in {tend - tstart} s.")
+    else:
+        print(f"Calculated {matched_peaks_matrix.shape[0]}x{matched_peaks_matrix.shape[1]} matches in {(tend - tstart) / 60} min.")
 
     # save similarity table in the right format
     scans_number = [s.get("scans") for s in spectra_preprocessed]
