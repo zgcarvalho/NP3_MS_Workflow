@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - bioconda
   - defaults
-  - bokeh  
+  - bokeh
 dependencies:
   - nodejs=15.2.0
   - r-base=3.6.3
@@ -24,7 +24,7 @@ dependencies:
   - r-squash=1.0.9
   - r-maldiquant=1.19.3
   - make=4.3
-  - compilers=1.7.0
+  - compilers
   - python=3.7
   - numpy=1.19.4
   - scipy=1.5.3
@@ -39,7 +39,6 @@ dependencies:
   - libgcrypt
   - pip
   - pip:
-    - termplotlib==0.3.8
-    - jinja2==3.0.3
-    - altair==4.2.2
-
+      - termplotlib==0.3.8
+      - jinja2==3.0.3
+      - altair==4.2.2
