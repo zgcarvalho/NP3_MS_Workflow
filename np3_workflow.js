@@ -304,12 +304,12 @@ function callMSCluster(parms, sim_tol, spec, name, out_path, rt_tol_i, keep_spli
             '--out-dir "'+out_path+'\\outs\\'+name+'" --rt-tolerance '+parms.rt_tolerance[rt_tol_i]+
             ' --fragment-tolerance '+parms.fragment_tolerance+' --window '+parms.mz_tolerance+' --similarity '+sim_tol+
             ' --model-dir "'+parms.model_dir+'" --sqs 0.0 --num-rounds '+parms.num_rounds+' --mixture-prob '+parms.mixture_prob+
-            ' --tmp-dir "'+__dirname+'\\NP3_MSCluster\\tmp_'+parms.output_name+'_rmv"'+' --min-peaks-output '+min_numPeak_output+
+            ' --tmp-dir "'+__dirname+'\\NP3_MSCluster\\tmp_'+name+'_rmv"'+' --min-peaks-output '+min_numPeak_output+
             ' --scale-factor '+parms.scale_factor +' --verbose-level 10 --output-mgf --assign-charges --major-increment 100 ' +
             '--output-file-size '+parms.max_chunk_spectra, {async:false, silent:(parms.verbose < min_verbose)});
     } else {
         const tmpDir = "/tmp/NP3_MSCluster/"+Math.random().toString(36).substring(2, 10);
-        const msclusterTmpDir = tmpDir+"/tmp_"+parms.output-name+"_rmv";
+        const msclusterTmpDir = tmpDir+"/tmp_"+name+"_rmv";
         shell.mkdir("-p", msclusterTmpDir);
         resExec = shell.exec(__dirname+'/NP3_MSCluster/NP3_MSCluster_bin --list '+spec+' --output-name '+name+' ' +
             '--out-dir '+out_path+'/outs/'+name+' --rt-tolerance '+parms.rt_tolerance[rt_tol_i]+
@@ -326,8 +326,8 @@ function callMSCluster(parms, sim_tol, spec, name, out_path, rt_tol_i, keep_spli
         '\n*** Calling NP3_MSCluster for: '+name+' *** \n\n'+resExec.stdout+'\n'+
         resExec.stderr).to(log_output_path);
 
-    // remove tmp file and leave mscluster dir
-    shell.rm('-rf', __dirname+'/NP3_MSCluster/tmp_'+parms.output_name+'_rmv');
+    // remove  file and leave mscluster dir
+    shell.rm('-rf', __dirname+'/NP3_MSCluster/tmp_'+name+'_rmv');
     shell.rm('-rf', __dirname+'/NP3_MSCluster/out*');
     //shell.cd('..');
 
